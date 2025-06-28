@@ -396,7 +396,7 @@
 #             insert_data.append((
 #                 "Default Area",              # area_name
 #                 datetime.now(),                        # edit_date (or use datetime.now())
-#                 citycode,
+#                 ,
 #                 city_name
 #             ))
 #         else:

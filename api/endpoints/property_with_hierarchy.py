@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, APIRouter, Request, Query
 import pytz
-from sqlalchemy import or_
+from sqlalchemy import or_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from pydantic import BaseModel
@@ -73,6 +73,10 @@ async def add_property_with_hierarchy(
         utc_now = pytz.utc.localize(datetime.utcnow())
         ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
 
+        city_code_db= db.query(FilterArea).filter(FilterArea.citycode==property_data.citycode).first()
+        if not city_code_db:
+            raise HTTPException(status_code=404, detail=" city code not found")
+
         property_obj = Property(
             property_code=property_code,
             furnished_property_id=property_data.furnished_property_id,
@@ -81,7 +85,8 @@ async def add_property_with_hierarchy(
             full_address=property_data.full_address,
             sublocation=property_data.sublocation,
             #location=property_data.location,
-            city=property_data.city,
+            city=property_data.city,            
+            citycode=city_code_db.citycode,
             des_code=property_data.des_code,
             LL_outright=property_data.LL_outright,
             property_type=property_data.property_type,
@@ -90,6 +95,7 @@ async def add_property_with_hierarchy(
             east_west=property_data.east_west,
             created_date=ist_now
         )
+        print(property_obj)
         db.add(property_obj)
         db.flush()
 
@@ -101,6 +107,7 @@ async def add_property_with_hierarchy(
                 raise HTTPException(
                     status_code=404, detail=f"Filter area {area_data.filter_area_id} not found"
                 )
+            print(filter_area)
 
             # Ensure unit_floor_wing is not empty before accessing index 0
             
@@ -151,6 +158,7 @@ async def add_property_with_hierarchy(
                 db.add(contact)
                 db.flush()
 
+        
         log_action = Logs(
             user_id=current_user.user_id,
             action="property data added",
@@ -198,7 +206,7 @@ async def get_all_properties(
             joinedload(Property.area).joinedload(Area.floor_wing_unit_number),
             joinedload(Property.furnished_properties),
             joinedload(Property.user)  
-        ).limit(100).all()
+        ).all()
 
         if not properties:
             raise HTTPException(status_code=404, detail="No properties found.")
@@ -212,11 +220,11 @@ async def get_all_properties(
         for property_obj in properties:
             property_citycode = str(property_obj.citycode).strip() if property_obj.citycode else None
 
-            area_name = filter_area_map.get(property_citycode, property_obj.city)  # fallback to property_obj.city if not found
+            city_name_new = filter_area_map.get(property_citycode, property_obj.city)  # fallback to property_obj.city if not found
             
             area_list = [
                 {
-                    "area_name": area_name,
+                    "area_name": city_name_new,
                     "built_up_area": area.built_up_area,
                     "carpet_up_area": area.carpet_up_area,
                     "efficiency": area.efficiency,
@@ -634,6 +642,8 @@ async def get_all_properties_by_area(
             max_code = max(area_db.citycode, area_db2.citycode)
             query = query.filter(Property.citycode.between(min_code, max_code))
 
+            
+
         # Total count (for pagination info)
         total = query.count()
         print(total,"***************")
@@ -672,10 +682,10 @@ async def get_all_properties_by_area(
                     } for wing in area.floor_wing_unit_number or []
                 ]
 
-                area_name = filter_area_map.get(property_citycode, property_obj.city)
+                city_name_new = filter_area_map.get(property_citycode, property_obj.city)
 
                 area_list.append({
-                    "area_name": area_name,
+                    "area_name": city_name_new,
                     "built_up_area": area.built_up_area,
                     "carpet_up_area": area.carpet_up_area,
                     "efficiency": area.efficiency,
@@ -726,6 +736,7 @@ async def get_all_properties_by_area(
                 "full_address": property_obj.full_address,
                 "sublocation": property_obj.sublocation,
                 "city": property_obj.city,
+                "citycode":property_obj.citycode,
                 "description": property_obj.descriptions.description if property_obj.descriptions else None,
                 "LL_outright": property_obj.LL_outright,
                 "property_type": property_obj.property_types.category if property_obj.property_types else None,

@@ -21,8 +21,8 @@ ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
 
 
 
-def generate_property_code(db: Session):
-    return f"PROP-{int(datetime.utcnow().timestamp())}"
+# def generate_property_code(db: Session):
+#     return f"PROP-{int(datetime.utcnow().timestamp())}"
 
 @router.post("/property/", response_model=PropertyCreate)
 def create_property(
@@ -32,6 +32,7 @@ def create_property(
 ):
     try:
         property_code = generate_property_code(db=db)
+        print("property_code: ", property_code)
 
         if db.query(Property).filter(Property.property_code == property_code).first():
             raise HTTPException(status_code=400, detail="Property code already exists.")
@@ -39,8 +40,8 @@ def create_property(
         if not db.query(PropertyTypes).filter(PropertyTypes.type_id == property.property_type).first():
             raise HTTPException(status_code=400, detail="Property type does not exist.")
         
-        if not db.query(LeaseSale).filter(LeaseSale.lease_id == property.lease_code).first():
-            raise HTTPException(status_code=400, detail="Lease code does not exist.")
+        # if not db.query(LeaseSale).filter(LeaseSale.lease_id == property.lease_code).first():
+        #     raise HTTPException(status_code=400, detail="Lease code does not exist.")
         
         if not db.query(Description).filter(Description.des_id == property.des_code).first():
             raise HTTPException(status_code=400, detail="Description code does not exist.")
@@ -66,7 +67,8 @@ def create_property(
         log_action = Logs(
             user_id=current_user.user_id,
             action="Property Created",
-            property_id=property_obj.id,
+            # property_id=property_obj.id,
+            property_id=property_obj.property_code, # updated by bhavan kumar
             timestamp=datetime.utcnow()
         )
         db.add(log_action)
@@ -75,9 +77,9 @@ def create_property(
         return property_obj
     except HTTPException as http_exc:
         raise http_exc
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Database error while creating property.")
+        raise HTTPException(status_code=500, detail=f"Database error while creating property.{str(e)}")
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

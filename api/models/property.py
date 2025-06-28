@@ -29,6 +29,7 @@ class Property(Base):
     east_west=  Column(String(50)) 
     created_date = Column(DateTime, default=datetime.utcnow)
     citycode = Column(String(100)) # added by bhavan kumar
+    
 
  
    
@@ -50,11 +51,28 @@ class Property(Base):
             value = f"P{str(self.id).zfill(3)}"  
         return value
     
+# def generate_property_code(db: Session):
+#     last_property = db.query(Property).order_by(Property.property_code.desc()).first()
+#     if last_property:
+#         last_code = int(last_property.property_code[1:]) 
+#         print(last_code,"********************")
+#         new_code = f"P{str(last_code + 1).zfill(3)}"
+#     else:
+#         new_code = "P001"
+#     return new_code 
+
+from sqlalchemy.sql.expression import func, cast
 def generate_property_code(db: Session):
-    last_property = db.query(Property).order_by(Property.property_code.desc()).first()
+    last_property = db.query(Property).order_by(
+        cast(func.substr(Property.property_code, 2), Integer).desc()
+    ).first()
+
     if last_property:
-        last_code = int(last_property.property_code[1:]) 
-        new_code = f"P{str(last_code + 1).zfill(3)}"
+        last_code_number = int(last_property.property_code[1:]) 
+        # print(last_code_number, "**********************")
+        new_code_number = last_code_number + 1
+        new_code = f"P{str(new_code_number).zfill(3)}"
     else:
         new_code = "P001"
     return new_code
+

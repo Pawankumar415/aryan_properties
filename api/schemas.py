@@ -340,6 +340,7 @@ class PropertySchema(BaseModel):
     #availability: Optional[str] = None
     #lease_out: Optional[str] = None
     reopen_date: Optional[str] = None
+    citycode:str
     #sold_out: Optional[str] = None
     areas: List[AreaSchema]
 
