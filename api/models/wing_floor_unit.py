@@ -10,6 +10,9 @@ class Floor_wing_unit(Base):
 
     floor_wing_unit_id = Column(Integer, primary_key=True, index=True)
     area_id = Column(Integer, ForeignKey("area.area_id"))
+    built_up_area = Column(Float) # added by bhavan kumar
+    carpet_up_area = Column(Float) # added by bhavan kumar
+    rental_psf = Column(String(100)) # added by bhavan kumar
     wing = Column(String(100), nullable=True)
     floor = Column(String(100), nullable=True)
     unit_number = Column(String(100), nullable=True)
@@ -18,3 +21,10 @@ class Floor_wing_unit(Base):
     # Relationships
     area = relationship("Area", back_populates="floor_wing_unit_number")
    
+
+
+
+# ALTER TABLE aryan_properties.floor_wing_unit
+# ADD COLUMN built_up_area FLOAT,
+# ADD COLUMN carpet_up_area FLOAT,
+# ADD COLUMN rental_psf VARCHAR(100);

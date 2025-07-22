@@ -1,5 +1,5 @@
-from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends
+from datetime import datetime, timedelta
+from fastapi import APIRouter, HTTPException, Depends, Query
 import pytz
 from sqlalchemy.orm import Session,joinedload
 from api.models.description import Description
@@ -13,6 +13,8 @@ from ..schemas import PropertyCreate,PropertyUpdate
 from database import get_db
 from ..models.property import generate_property_code
 from sqlalchemy.exc import SQLAlchemyError
+from typing import List
+from sqlalchemy import func
 
 router = APIRouter()
 
@@ -171,6 +173,8 @@ def get_property_by_id(property_code: str, db: Session = Depends(get_db)):
 #         db.rollback()
 #         raise HTTPException(status_code=500, detail=f"An unexpected error occurred while updating property data: {str(e)}")
 
+
+
 @router.delete("/property/{property_id}", response_model=dict)
 def delete_property(property_code: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Delete a property by its ID."""
@@ -193,3 +197,14 @@ def delete_property(property_code: str, db: Session = Depends(get_db), current_u
     db.commit()
 
     return {"message": "Property deleted successfully", "property_id": property_code}
+
+
+
+
+
+
+
+
+
+
+

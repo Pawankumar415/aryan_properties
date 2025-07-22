@@ -311,6 +311,9 @@ class UnitFloorWingSchema(BaseModel):
     wing: Optional[str] = None
     floor: Optional[str] = None
     unit_number: Optional[str] = None
+    built_up_area: Optional[float] = None  # added by bhavan kumar
+    carpet_up_area: Optional[float] = None  # added by bhavan kumar
+    rental_psf: Optional[str] = None  # added by bhavan kumar
 
 class AreaSchema(BaseModel):
     filter_area_id: int

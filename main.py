@@ -8,7 +8,13 @@ from api.endpoints import (user_rouetr,  property_router, propertyTypes_router, 
                            furnished_property_router, area_router)
 # Base.metadata.create_all(bind=engine)
 
-app = FastAPI(root_path="/aryan_properties")
+# app = FastAPI(root_path="/aryan_properties")
+app = FastAPI(
+    docs_url=None,
+    redoc_url=None
+)
+
+
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -47,9 +53,45 @@ app.include_router(area_router, prefix="/api", tags=["Area Routes"])
 app.include_router(client_router, prefix="/api", tags=["client Routes"])
 app.include_router(log_router, prefix="/api", tags=["Logs Routes"])
 
+
+
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.responses import HTMLResponse
+import secrets
+
+
+security = HTTPBasic()
+REALM = "swagger"
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, "admin")
+    correct_password = secrets.compare_digest(credentials.password, "12345678")
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": f'Basic realm="{REALM}"'},
+        )
+
+# ✅ /docs with Basic Auth
+@app.get("/docs", include_in_schema=False)
+def custom_docs(credentials: HTTPBasicCredentials = Depends(verify_credentials)):
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="Swagger UI")
+
+# ✅ /redoc with Basic Auth
+@app.get("/redoc", include_in_schema=False)
+def custom_redoc(credentials: HTTPBasicCredentials = Depends(verify_credentials)):
+    return get_redoc_html(openapi_url="/openapi.json", title="Redoc")
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", port=8000, reload= True, host="0.0.0.0")
+
+
 
 
 

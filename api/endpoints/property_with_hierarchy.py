@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, APIRouter, Request, Query
 import pytz
-from sqlalchemy import or_, desc
+from sqlalchemy import or_, desc,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from pydantic import BaseModel
@@ -136,6 +136,9 @@ async def add_property_with_hierarchy(
                         wing=wing_data.wing,  
                         floor=wing_data.floor,
                         unit_number=wing_data.unit_number,
+                        built_up_area=wing_data.built_up_area,  # added by bhavan kumar
+                        carpet_up_area=wing_data.carpet_up_area, # added by bhavan kumar
+                        rental_psf=wing_data.rental_psf, #  added by bhavan kumar
                     )
                     db.add(wing_floor_unit_db)
                     db.flush()
@@ -237,7 +240,10 @@ async def get_all_properties(
                         {
                             "floor": wing.floor,
                             "wing": wing.wing,
-                            "unit_number": wing.unit_number
+                            "unit_number": wing.unit_number,
+                            "built_up_area":wing.built_up_area,
+                            "carpet_up_area":wing.carpet_up_area,
+                            "rental_psf": wing.rental_psf,
                         } 
                         for wing in area.floor_wing_unit_number  # Iterate over each floor_wing_unit
                     ]
@@ -324,298 +330,6 @@ async def get_all_properties(
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-# original code
-
-
-# @router.get("/get_all_properties/")
-# async def get_all_properties_by_area(
-#     db: Session = Depends(get_db),
-#     current_user: AriyanspropertiesUser = Depends(get_current_user),
-#     from_area: str = None,
-#     to_area: str = None
-# ):
-#     try:
-#         if not current_user.can_view:
-#             raise HTTPException(status_code=403, detail="You do not have permission to view properties.")
-
-#         area_query = db.query(FilterArea)
-#         area_db = area_query.filter(FilterArea.area_name == from_area).first() if from_area else None
-#         area_db2 = area_query.filter(FilterArea.area_name == to_area).first() if to_area else None
-
-#         # query = db.query(Property).join(Area)
-#         query = db.query(Property).outerjoin(Area) # updated by bhavan kumar
-#         # print(query.count(),"########################")
-
-#         if area_db and area_db2:
-#             min_id = min(area_db.filter_area_id, area_db2.filter_area_id)
-#             max_id = max(area_db.filter_area_id, area_db2.filter_area_id)
-#             query = query.filter(Area.filter_area_id.between(min_id, max_id))
-
-#         # properties = query.options(
-#         #     joinedload(Property.descriptions),
-#         #     joinedload(Property.property_types),
-#         #     joinedload(Property.contacts),
-#         #     joinedload(Property.area).joinedload(Area.filter_area),
-#         #     joinedload(Property.area).joinedload(Area.floor_wing_unit_number),
-#         #     joinedload(Property.furnished_properties),
-#         #     joinedload(Property.user)
-#         # ).limit(100).all()
-#         properties = db.query(Property).limit(100).all() 
-#         # return properties
-
-#         print(len(properties),"****************")
-    
-
-#         if not properties:
-#             raise HTTPException(status_code=404, detail="No properties found.")
-
-#         property_list = []
-#         for property_obj in properties:
-#             area_list = [
-#                 {
-#                     "area_name": area.filter_area.area_name if area.filter_area else None,
-#                     "built_up_area": area.built_up_area,
-#                     "carpet_up_area": area.carpet_up_area,
-#                     "efficiency": area.efficiency,
-#                     "car_parking": area.car_parking,
-#                     "rental_psf": area.rental_psf,
-#                     "outright_rate_psf": area.outright_rate_psf,
-#                     "terrace_area":area.terrace_area,
-#                     "remarks":area.remarks,
-#                     "floor_wing_unit_number": [
-#                         {
-#                             "floor": wing.floor,
-#                             "wing": wing.wing,
-#                             "unit_number": wing.unit_number
-#                         } 
-#                         for wing in area.floor_wing_unit_number
-#                     ]
-#                 }
-#                 for area in property_obj.area
-#             ]
-
-#             contact_list = [
-#                 {
-#                     "company_builder_name": contact.company_builder_name,
-#                     "address": contact.address,
-#                     "conatact_person_1": contact.conatact_person_1,
-#                     "conatact_person_2": contact.conatact_person_2,
-#                     "conatact_person_number_1": contact.conatact_person_number_1,
-#                     "conatact_person_number_2": contact.conatact_person_number_2,
-#                     "email": contact.email,
-#                     "reffered_by": contact.reffered_by
-#                 }
-#                 for contact in property_obj.contacts  
-#             ]
-#             # Extracting furnished property details
-#             furnished_property_data = None
-#             if property_obj.furnished_properties:
-#                 furnished_property_data = {
-#                     "id":property_obj.furnished_properties.id,
-#                     "workstations": property_obj.furnished_properties.workstations,
-#                     "workstation_type_cubicle": property_obj.furnished_properties.workstation_type_cubicle,
-#                     "workstation_type_linear": property_obj.furnished_properties.workstation_type_linear,
-#                     "workstation_type_both": property_obj.furnished_properties.workstation_type_both,
-#                     "cabins": property_obj.furnished_properties.cabins,
-#                     "meeting_rooms": property_obj.furnished_properties.meeting_rooms,
-#                     "conference_rooms": property_obj.furnished_properties.conference_rooms,
-#                     "cafeteria_seats": property_obj.furnished_properties.cafeteria_seats,
-#                     "washrooms": property_obj.furnished_properties.washrooms,
-#                     "pantry_area": property_obj.furnished_properties.pantry_area,
-#                     "backup_ups_room": property_obj.furnished_properties.backup_ups_room,
-#                     "server_electrical_room": property_obj.furnished_properties.server_electrical_room,
-#                     "reception_waiting_area": property_obj.furnished_properties.reception_waiting_area,
-#                     "edit_date": property_obj.furnished_properties.edit_date
-#                 }
-
-#             description_text = property_obj.descriptions.description if property_obj.descriptions else None
-#             property_text = property_obj.property_types.category if property_obj.property_types else None
-#             # print(property_obj.__dict__)
-
-#             property_list.append({
-#                 "property_code": property_obj.property_code,
-#                 # "user_name":property_obj.user.user_name,
-#                 "user_name": property_obj.user.user_name if property_obj.user else None, # updated by bhavan kumar
-#                 "building_name": property_obj.building_name,
-#                 "full_address": property_obj.full_address,
-#                 "sublocation": property_obj.sublocation,
-#                 "city": property_obj.city,
-#                 "description": description_text,
-#                 "LL_outright": property_obj.LL_outright,
-#                 "property_type": property_text,
-#                 "poss_status": property_obj.poss_status,
-#                 "east_west": property_obj.east_west,
-#                 "reopen_data": property_obj.Reopen_date,
-#                 "created_date":property_obj.created_date,
-#                 "areas": area_list,
-#                 "contacts": contact_list,
-#                 "furnished_details": furnished_property_data
-#             })
-
-#         return property_list
-
-#     except HTTPException as http_exc:
-#         raise http_exc
-#     except SQLAlchemyError as e:
-#         db.rollback()
-#         raise HTTPException(status_code=500, detail=f"A database error occurred while retrieving property data.{str(e)}")
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(status_code=500, detail=f"An unexpected error occurred while retrieving property data., {str(e)}")
-    
-
-###########################################################################################
-
-
-
-
-
-##############################################################################################
-
-
-# @router.get("/get_all_properties/")
-# async def get_all_properties_by_area(
-#     db: Session = Depends(get_db),
-#     current_user: AriyanspropertiesUser = Depends(get_current_user),
-#     from_area: str = None,
-#     to_area: str = None
-# ):
-#     try:
-#         if not current_user.can_view:
-#             raise HTTPException(status_code=403, detail="You do not have permission to view properties.")
-
-#         # 🔁 Fetch citycode for from_area and to_area
-#         area_query = db.query(FilterArea)
-#         area_db = area_query.filter(FilterArea.city_name == from_area).first() if from_area else None
-#         area_db2 = area_query.filter(FilterArea.city_name == to_area).first() if to_area else None
-
-#         # 🔁 Query base
-#         query = db.query(Property)
-
-#         if area_db and area_db2:
-#             min_code = min(area_db.citycode, area_db2.citycode)
-#             max_code = max(area_db.citycode, area_db2.citycode)
-#             query = query.filter(Property.citycode.between(min_code, max_code))
-
-#         # 🔁 Preload related data
-#         properties = query.options(
-#             joinedload(Property.descriptions),
-#             joinedload(Property.property_types),
-#             joinedload(Property.contacts),
-#             joinedload(Property.area).joinedload(Area.floor_wing_unit_number),
-#             joinedload(Property.furnished_properties),
-#             joinedload(Property.user)
-#         ).all()
-
-#         print("Total after filter:", query.count())
-
-
-#         if not properties:
-#             raise HTTPException(status_code=404, detail="No properties found.")
-
-#         # 🔁 Build filter_area map to fetch city_name by citycode
-#         filter_area_map = {
-#             str(f.citycode).strip().lower(): f.city_name
-#             for f in db.query(FilterArea).all()
-#         }
-
-#         property_list = []
-#         for property_obj in properties:
-#             property_citycode = str(property_obj.citycode).strip().lower() if property_obj.citycode else None
-
-#             area_list = []
-#             for area in property_obj.area or []:
-#                 floor_units = [
-#                     {
-#                         "floor": wing.floor,
-#                         "wing": wing.wing,
-#                         "unit_number": wing.unit_number
-#                     } for wing in area.floor_wing_unit_number or []
-#                 ]
-
-#                 area_name = filter_area_map.get(property_citycode, property_obj.city)
-
-#                 area_list.append({
-#                     "area_name": area_name,
-#                     "built_up_area": area.built_up_area,
-#                     "carpet_up_area": area.carpet_up_area,
-#                     "efficiency": area.efficiency,
-#                     "car_parking": area.car_parking,
-#                     "rental_psf": area.rental_psf,
-#                     "outright_rate_psf": area.outright_rate_psf,
-#                     "terrace_area": area.terrace_area,
-#                     "remarks": area.remarks,
-#                     "floor_wing_unit_number": floor_units
-#                 })
-
-#             contact_list = [
-#                 {
-#                     "company_builder_name": contact.company_builder_name,
-#                     "address": contact.address,
-#                     "conatact_person_1": contact.conatact_person_1,
-#                     "conatact_person_2": contact.conatact_person_2,
-#                     "conatact_person_number_1": contact.conatact_person_number_1,
-#                     "conatact_person_number_2": contact.conatact_person_number_2,
-#                     "email": contact.email,
-#                     "reffered_by": contact.reffered_by
-#                 } for contact in property_obj.contacts or []
-#             ]
-
-#             furnished = property_obj.furnished_properties
-#             furnished_data = {
-#                 "id": furnished.id,
-#                 "workstations": furnished.workstations,
-#                 "workstation_type_cubicle": furnished.workstation_type_cubicle,
-#                 "workstation_type_linear": furnished.workstation_type_linear,
-#                 "workstation_type_both": furnished.workstation_type_both,
-#                 "cabins": furnished.cabins,
-#                 "meeting_rooms": furnished.meeting_rooms,
-#                 "conference_rooms": furnished.conference_rooms,
-#                 "cafeteria_seats": furnished.cafeteria_seats,
-#                 "washrooms": furnished.washrooms,
-#                 "pantry_area": furnished.pantry_area,
-#                 "backup_ups_room": furnished.backup_ups_room,
-#                 "server_electrical_room": furnished.server_electrical_room,
-#                 "reception_waiting_area": furnished.reception_waiting_area,
-#                 "edit_date": furnished.edit_date
-#             } if furnished else None
-
-#             property_list.append({
-#                 "property_code": property_obj.property_code,
-#                 "user_name": property_obj.user.user_name if property_obj.user else None,
-#                 "building_name": property_obj.building_name,
-#                 "full_address": property_obj.full_address,
-#                 "sublocation": property_obj.sublocation,
-#                 "city": property_obj.city,
-#                 "description": property_obj.descriptions.description if property_obj.descriptions else None,
-#                 "LL_outright": property_obj.LL_outright,
-#                 "property_type": property_obj.property_types.category if property_obj.property_types else None,
-#                 "poss_status": property_obj.poss_status,
-#                 "east_west": property_obj.east_west,
-#                 "reopen_data": property_obj.Reopen_date,
-#                 "created_date": property_obj.created_date,
-#                 "areas": area_list,
-#                 "contacts": contact_list,
-#                 "furnished_details": furnished_data
-#             })
-
-#         return property_list
-
-#     except HTTPException as http_exc:
-#         raise http_exc
-#     except SQLAlchemyError as e:
-#         db.rollback()
-#         raise HTTPException(status_code=500, detail=f"DB error: {str(e)}")
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-
-
-
-
-
-
-
 
 
 @router.get("/get_all_properties/")
@@ -678,7 +392,10 @@ async def get_all_properties_by_area(
                     {
                         "floor": wing.floor,
                         "wing": wing.wing,
-                        "unit_number": wing.unit_number
+                        "unit_number": wing.unit_number,
+                        "built_up_area":wing.built_up_area, # added by bhavan kumar
+                        "carpet_up_area":wing.carpet_up_area, #  # added by bhavan kumar
+                        "rental_psf":wing.rental_psf, #  # added by bhavan kumar
                     } for wing in area.floor_wing_unit_number or []
                 ]
 
@@ -849,7 +566,10 @@ async def update_property_with_hierarchy(
                     area_id=area.area_id,
                     wing=wing_data.wing,
                     floor=wing_data.floor,
-                    unit_number=wing_data.unit_number
+                    unit_number=wing_data.unit_number,
+                    built_up_area=wing_data.built_up_area,  # added by bhavan kumar
+                    carpet_up_area=wing_data.carpet_up_area, # added by bhavan kumar
+                    rental_psf=wing_data.rental_psf, #  added by bhavan kumar
                 )
                 db.add(wing_floor_unit_db)
             db.flush()
@@ -938,3 +658,70 @@ async def delete_property(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred while deleting the property: {str(e)}")
+
+
+
+
+
+
+@router.get("/last-3-months")
+def get_properties_in_last_3_months(db: Session = Depends(get_db),current_user: AriyanspropertiesUser = Depends(get_current_user)):
+    try:
+        # Current date and 90 days before
+        end_date = datetime.today().date()                # 2025-07-22
+        start_date = end_date - timedelta(days=90)        # 2025-04-23
+
+        results = (
+            db.query(Property)
+            .filter(
+                func.str_to_date(Property.Reopen_date, "%Y-%m-%d")
+                .between(start_date, end_date)
+            )
+            .all()
+        )
+
+        if not results:
+            raise HTTPException(status_code=404, detail="No properties found in the given range")
+
+        return results
+
+    except HTTPException as he:
+        raise he
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+    
+
+
+@router.patch("/update-reopen-date", response_model=dict)
+def update_reopen_date(
+    property_id: int,
+    new_reopen_date: str,
+    db: Session = Depends(get_db),
+    current_user: AriyanspropertiesUser = Depends(get_current_user)
+):
+    try:
+        # Validate the date format first
+        try:
+            parsed_date = datetime.strptime(new_reopen_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+        # Find the property by ID
+        property_obj = db.query(Property).filter(Property.id == property_id).first()
+        if not property_obj:
+            raise HTTPException(status_code=404, detail="Property not found.")
+
+        # Update only the Reopen_date
+        property_obj.Reopen_date = new_reopen_date
+        db.commit()
+
+        return {"message": "Reopen_date updated successfully"}
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

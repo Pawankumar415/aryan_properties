@@ -4,7 +4,8 @@ from auth.auth_handler import decodeJWT
 from database import get_db
 from sqlalchemy.orm import Session
 from typing import Optional
-from jwt import PyJWTError
+from jose import JWTError, jwt
+
 from api.models.user import AriyanspropertiesUser
 
 class JWTBearer(HTTPBearer):
@@ -79,7 +80,7 @@ def get_current_user(token: str = Depends(JWTBearer()), db: Session = Depends(ge
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return user
-    except PyJWTError:
+    except JWTError:
         raise HTTPException(
             status_code=401,
             detail="Could not validate credentials",

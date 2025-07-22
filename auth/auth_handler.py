@@ -4,7 +4,9 @@ import time
 from typing import Any
 import jwt
 from decouple import config
-from jwt import PyJWTError
+from jose import JWTError,jwt
+
+
 
 JWT_SECRET = config('SECRET')
 JWT_ALGORITHM = config('ALGORITHM')
@@ -37,5 +39,5 @@ def decodeJWT(token: str) -> Any | None:
         if "user_id" not in decoded_token or "user_type" not in decoded_token:
             return None
         return decoded_token
-    except PyJWTError:
+    except JWTError:
         return None
